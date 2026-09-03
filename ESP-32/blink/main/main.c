@@ -14,7 +14,6 @@ void app_main(void)
     gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
 
     printf("Blinking LED on GPIO %d\n", BLINK_GPIO);
-    printf("Press Ctrl+C to stop the program\n");
 
     // Blink loop
     while (1) {
