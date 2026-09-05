@@ -12,6 +12,7 @@ void app_main(void)
     // Configure the GPIO pin
     gpio_reset_pin(BLINK_GPIO);
     gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    gpio_pullup_en
 
     printf("Blinking LED on GPIO %d\n", BLINK_GPIO);
 
