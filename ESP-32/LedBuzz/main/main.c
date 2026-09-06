@@ -50,7 +50,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
             &command, // Variable donde se almacenará la notificación recibida
             portMAX_DELAY // Esperar indefinidamente hasta recibir una notificación
         );
-        switchCase:
+        process_command:
             gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
             gpio_set_level(LED_PIN, 0); // Apagar LED
             switch (command)
@@ -74,7 +74,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                         ) == pdTRUE)
                     {
                         printf("Core 1: Recibí otra orden antes de apagar el buzzer\n");
-                        goto switchCase; // Si llega otra orden, procesarla inmediatamente
+                        goto process_command; // Si llega otra orden, procesarla inmediatamente
                     }
                     gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
                     gpio_set_level(LED_PIN, 0); // Apagar LED
@@ -93,7 +93,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                             pdMS_TO_TICKS(2000) // esperar 2 segundos a menos que llegue otra orden
                         ) == pdTRUE)
                     {
-                        goto switchCase; // Si llega otra orden, procesarla inmediatamente
+                        goto process_command; // Si llega otra orden, procesarla inmediatamente
                     }
                     gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
                     gpio_set_level(LED_PIN, 0); // Apagar LED
@@ -112,7 +112,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                         ) == pdTRUE)
                     {
                         printf("Core 1: Recibí otra orden antes de continuar el Buzzer\n");
-                        goto switchCase; // Si llega otra orden, procesarla inmediatamente
+                        goto process_command; // Si llega otra orden, procesarla inmediatamente
                     }
 
                     printf("Buzzer por 3 segundos...\n");
@@ -126,7 +126,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                         ) == pdTRUE)
                     {
                         printf("Core 1: Recibí otra orden antes de apagar el Buzzer y LED\n");
-                        goto switchCase; // Si llega otra orden, procesarla inmediatamente
+                        goto process_command; // Si llega otra orden, procesarla inmediatamente
                     }
 
                     gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
