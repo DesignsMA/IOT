@@ -6,14 +6,15 @@
 #include "driver/gpio.h" // Funciones GPIO y estructuras
 
 
-#define BUZZER_PIN GPIO_NUM_17
-#define LED_PIN GPIO_NUM_5
-#define BUTTON_PIN GPIO_NUM_14
+#define BUZZER_PIN GPIO_NUM_1
+#define LED_PIN GPIO_NUM_2
+#define BUTTON_PIN GPIO_NUM_4
+#define BUTTON_SOURCE GPIO_NUM_18 // fuente de 3.3V para el botón
 
 gpio_config_t output_config = {
     .intr_type = GPIO_INTR_DISABLE,
     .mode = GPIO_MODE_OUTPUT,
-    .pin_bit_mask = (1ULL << LED_PIN) | (1ULL << BUZZER_PIN),
+    .pin_bit_mask = (1ULL << LED_PIN) | (1ULL << BUZZER_PIN) | (1ULL << BUTTON_SOURCE),
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .pull_up_en = GPIO_PULLUP_DISABLE,
 };
@@ -30,6 +31,8 @@ enum Command {
     CMD_EXIT,
     CMD_LED_ON,
     CMD_LED_OFF,
+    CMD_ALARM,
+    CMD_TONE,
     CMD_BUTTON_PRESSED,
 };
 
@@ -57,6 +60,18 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
             {
                 case CMD_EXIT:
                     printf("Core 1: Recibí orden de salir, terminando tarea...\n");
+                    gpio_set_level(BUZZER_PIN, 1);
+                    gpio_set_level(LED_PIN, 1);
+                    vTaskDelay(pdMS_TO_TICKS(500)); // Esperar 1 segundo
+                    gpio_set_level(BUZZER_PIN, 0);
+                    gpio_set_level(LED_PIN, 0);
+                    vTaskDelay(pdMS_TO_TICKS(200));
+                    gpio_set_level(BUZZER_PIN, 1);
+                    gpio_set_level(LED_PIN, 1);
+                    vTaskDelay(pdMS_TO_TICKS(500)); // Esperar 1 segundo
+                    gpio_set_level(BUZZER_PIN, 0);
+                    gpio_set_level(LED_PIN, 0);
+                    gpio_set_level(BUTTON_SOURCE, 0); // Apagar fuente de 3.3V para el botón
                     vTaskDelete(NULL); // Terminar la tarea actual
                     break;
 
@@ -133,6 +148,68 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                     gpio_set_level(LED_PIN, 0); // Apagar LED
                     printf("Buzzer y LED apagados.\n");
                     break;
+                case CMD_ALARM:
+                    printf("Core 1: Recibí orden ALARM\n");
+                    while (1)
+                    {
+                    
+                        gpio_set_level(LED_PIN, 1); // Encender LED
+                        gpio_set_level(BUZZER_PIN, 1); // Encender buzzer
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command, // sobreescribir command con la nueva notificación si llega
+                                pdMS_TO_TICKS(300) // esperar 2 segundos a menos que llegue otra orden
+                            ) == pdTRUE)
+                        {
+                            printf("Core 1: Parando alarma...\n");
+                            goto process_command; // Si llega otra orden, procesarla inmediatamente
+                        }
+                        gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
+                        gpio_set_level(LED_PIN, 0); // Apagar LED
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command, // sobreescribir command con la nueva notificación si llega
+                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                            ) == pdTRUE)
+                        {
+                            printf("Core 1: Parando alarma...\n");
+                            goto process_command; // Si llega otra orden, procesarla inmediatamente
+                        }
+
+                    }
+                    break;
+                
+                case CMD_TONE:
+                    printf("Core 1: Recibí orden TONE\n");
+                    for (int i = 0; i < 5; i++)
+                    {
+                        gpio_set_level(BUZZER_PIN, 1); // Encender buzzer
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command, // sobreescribir command con la nueva notificación si llega
+                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                            ) == pdTRUE)
+                        {
+                            printf("Core 1: Parando tono...\n");
+                            goto process_command; // Si llega otra orden, procesarla inmediatamente
+                        }
+                        gpio_set_level(BUZZER_PIN, 0); // Apagar buzzer
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command, // sobreescribir command con la nueva notificación si llega
+                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                            ) == pdTRUE)
+                        {
+                            printf("Core 1: Parando tono...\n");
+                            goto process_command; // Si llega otra orden, procesarla inmediatamente
+                        }
+                    }
+                    break;
+
                 default:
                     printf("Core 1: Recibí orden desconocida: %lu\n", command);
                     break;
@@ -162,7 +239,7 @@ void app_main(void) // Función principal del programa, ejecutada en FreeRTOS
         &task_handle, // Handle de la tarea
         1 // Core donde se ejecutará la tarea (Core 1)
     );
-
+    gpio_set_level(BUTTON_SOURCE, 1); // Activar fuente de 3.3V para el botón
     while (1)
     {
         if (gpio_get_level(BUTTON_PIN) == 1) // Si el botón está presionado
@@ -197,9 +274,13 @@ void app_main(void) // Función principal del programa, ejecutada en FreeRTOS
                         xTaskNotify(task_handle, CMD_EXIT, eSetValueWithOverwrite); // Notificar a la tarea en Core 1
                         break; // Salir del bucle principal y terminar la tarea
                     }
-                    else if (strcmp(buffer, "BUTTON") == 0)
+                    else if (strcmp(buffer, "ALARM") == 0)
                     {
-                        xTaskNotify(task_handle, CMD_BUTTON_PRESSED, eSetValueWithOverwrite); // Notificar a la tarea en Core 1
+                        xTaskNotify(task_handle, CMD_ALARM, eSetValueWithOverwrite); // Notificar a la tarea en Core 1
+                    }
+                    else if (strcmp(buffer, "TONE") == 0)
+                    {
+                        xTaskNotify(task_handle, CMD_TONE, eSetValueWithOverwrite); // Notificar a la tarea en Core 1
                     }
                     else
                     {
