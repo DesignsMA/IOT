@@ -1,3 +1,11 @@
+/* Programa principal para controlar un LED y un buzzer con un botón usando FreeRTOS en ESP32.
+   
+   Hecho por: Marco Antonio Ciprian Romero
+   Revisa la licencia en el archivo LICENSE dentro del repositorio del proyecto.
+   https://github.com/DesignsMA/IOT
+
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -85,7 +93,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                             0,
                             ULONG_MAX,
                             &command, // sobreescribir command con la nueva notificación si llega
-                            pdMS_TO_TICKS(2000) // esperar 2 segundos a menos que llegue otra orden
+                            pdMS_TO_TICKS(2000) 
                         ) == pdTRUE)
                     {
                         printf("Core 1: Recibí otra orden antes de apagar el buzzer\n");
@@ -105,7 +113,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                             0,
                             ULONG_MAX,
                             &command, // sobreescribir command con la nueva notificación si llega
-                            pdMS_TO_TICKS(2000) // esperar 2 segundos a menos que llegue otra orden
+                            pdMS_TO_TICKS(2000) 
                         ) == pdTRUE)
                     {
                         goto process_command; // Si llega otra orden, procesarla inmediatamente
@@ -159,7 +167,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                                 0,
                                 ULONG_MAX,
                                 &command, // sobreescribir command con la nueva notificación si llega
-                                pdMS_TO_TICKS(300) // esperar 2 segundos a menos que llegue otra orden
+                                pdMS_TO_TICKS(300) 
                             ) == pdTRUE)
                         {
                             printf("Core 1: Parando alarma...\n");
@@ -171,7 +179,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                                 0,
                                 ULONG_MAX,
                                 &command, // sobreescribir command con la nueva notificación si llega
-                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                                pdMS_TO_TICKS(100) 
                             ) == pdTRUE)
                         {
                             printf("Core 1: Parando alarma...\n");
@@ -190,7 +198,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                                 0,
                                 ULONG_MAX,
                                 &command, // sobreescribir command con la nueva notificación si llega
-                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                                pdMS_TO_TICKS(100) 
                             ) == pdTRUE)
                         {
                             printf("Core 1: Parando tono...\n");
@@ -201,7 +209,7 @@ void task_core1(void *pvParameters) // tarea paralela ejecutada en el Core 1, es
                                 0,
                                 ULONG_MAX,
                                 &command, // sobreescribir command con la nueva notificación si llega
-                                pdMS_TO_TICKS(100) // esperar 2 segundos a menos que llegue otra orden
+                                pdMS_TO_TICKS(100) 
                             ) == pdTRUE)
                         {
                             printf("Core 1: Parando tono...\n");
