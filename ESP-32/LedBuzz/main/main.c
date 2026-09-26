@@ -1,6 +1,6 @@
 /* Programa principal para controlar un LED y un buzzer con un botón usando FreeRTOS en ESP32.
    
-   Hecho por: Marco Antonio Ciprian Romero
+   Hecho por: Marco Ciprian
    Revisa la licencia en el archivo LICENSE dentro del repositorio del proyecto.
    https://github.com/DesignsMA/IOT
 
