@@ -9,7 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "htcw_rmt_ir.h"
+#include "htcw_rmt_ir.h" // Librería para manejar el receptor IR, derivada de htcw_rmt_ir
 #include "esp_random.h"
 #include <math.h>
 
