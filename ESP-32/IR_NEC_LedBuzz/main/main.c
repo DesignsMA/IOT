@@ -16,10 +16,10 @@
 // Definiciones de pines
 #define IR_RECEIVER_SOURCE GPIO_NUM_4
 #define IR_RECEIVER_PIN GPIO_NUM_17
-#define LED_PIN1 GPIO_NUM_5
-#define LED_PIN2 GPIO_NUM_6
-#define LED_PIN3 GPIO_NUM_7
-#define LED_PIN4 GPIO_NUM_15
+#define LED_PIN1 GPIO_NUM_15
+#define LED_PIN2 GPIO_NUM_7
+#define LED_PIN3 GPIO_NUM_6
+#define LED_PIN4 GPIO_NUM_5
 #define BUZZER_PIN GPIO_NUM_16
 
 // Definiciones de códigos hexadecimales
@@ -34,6 +34,9 @@
 #define IR_CODE_9   0x00FF0730
 #define IR_CODE_10  0x00FF0731
 #define IR_CODE_EXIT  0x00FF0732
+#define IR_CODE_TEST  0x00FF0FFF
+#define IR_CODE_TEST_RESULTS  0x00FF1FFF
+#define TEST_COUNT 100
 
 static TaskHandle_t command_task_handle;
 static unsigned short exitFlag=0;
@@ -382,6 +385,8 @@ void app_main(void)
         printf("No se pudo crear el receptor IR\n");
         return;
     }
+    
+    int received_count = 0;
 
     while (true) {
         if (rmt_ir_recv_poll(receiver, &brand, &code, &bits)) {
@@ -389,6 +394,19 @@ void app_main(void)
                    brand, (unsigned long)code, (unsigned)bits);
 
             notify_command(code);
+
+            if (code == IR_CODE_TEST) {
+                printf("Se ha recibido el comando de prueba\n");
+                received_count++;
+                printf("Número de veces que se ha recibido el comando de prueba: %d\n", received_count);
+            }
+
+            if (code == IR_CODE_TEST_RESULTS) {
+                printf("Se ha recibido el comando de resultados de prueba\n");
+                printf("Número total de veces que se ha recibido el comando de prueba: %d/%d\n", received_count, TEST_COUNT);
+                printf("Porcentaje y ratio de acierto: %.2f%%\n", (float)received_count / TEST_COUNT * 100.0f);
+                received_count = 0; // Reiniciar el contador después de mostrar los resultados
+            }
 
             if (exitFlag == 1) {
                 printf("Se ha solicitado salir del programa\n");
