@@ -6,11 +6,12 @@
 
 */
 
-#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "htcw_rmt_ir.h"
+#include "esp_random.h"
+#include <math.h>
 
 // Definiciones de pines
 #define IR_RECEIVER_SOURCE GPIO_NUM_4
@@ -35,6 +36,7 @@
 #define IR_CODE_EXIT  0x00FF0732
 
 static TaskHandle_t command_task_handle;
+static unsigned short exitFlag=0;
 
 // Envia notificacion a tarea de comandos
 static void notify_command(uint32_t command)
@@ -45,11 +47,10 @@ static void notify_command(uint32_t command)
 
 static void set_leds(int* states)
 {
-    for (size_t i = 0; i < 4; i++)
-    {
-        gpio_set_level(LED_PIN1 + i, states[i]);
-    }
-    
+    gpio_set_level(LED_PIN1, states[0]);
+    gpio_set_level(LED_PIN2, states[1]);
+    gpio_set_level(LED_PIN3, states[2]);
+    gpio_set_level(LED_PIN4, states[3]);
 }
 
 static void command_task(void *parameter)
@@ -64,21 +65,269 @@ static void command_task(void *parameter)
 
         process_command:
             gpio_set_level(BUZZER_PIN, 0);
-            set_leds((int[]){0, 0, 0, 0}); // Apagar todos los LEDs
 
             switch (command) {
                 case IR_CODE_1:
-                    printf("IR: ON\n");
+                    printf("Prende LED 1\n");
                     set_leds((int[]){1, 0, 0, 0});
+                    break;
+
+                case IR_CODE_2:
+                    printf("Prende LED 2\n");
+                    set_leds((int[]){0, 1, 0, 0});
+                    gpio_set_level(BUZZER_PIN, 1);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(1000)) == pdTRUE) {
+                        goto process_command;
+                    }
+                    break;
+
+                case IR_CODE_3:
+                    printf("Prendiste el LED 3\n");
+                    set_leds((int[]){0, 0, 1, 0});
+                    break;
+                
+                case IR_CODE_4:
+                    printf("Prende LED 4\n");
+                    set_leds((int[]){0, 0, 0, 1});
                     gpio_set_level(BUZZER_PIN, 1);
 
                     if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(2000)) == pdTRUE) {
                         goto process_command;
                     }
                     break;
+                
+                case IR_CODE_5:
+                    printf("Se apagó todo\n");
+                    set_leds((int[]){0, 0, 0, 0});
+                    gpio_set_level(BUZZER_PIN, 1);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(200)) == pdTRUE) {
+                        goto process_command;
+                    }
+
+                    gpio_set_level(BUZZER_PIN, 0);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        goto process_command;
+                    }
+
+                    gpio_set_level(BUZZER_PIN, 1);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(200)) == pdTRUE) {
+                        goto process_command;
+                    }
+                    break;
+                
+                case IR_CODE_6:
+                    printf("Se prendió todo\n");
+                    set_leds((int[]){1, 1, 1, 1});
+                    gpio_set_level(BUZZER_PIN, 1);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(200)) == pdTRUE) {
+                        goto process_command;
+                    }
+
+                    gpio_set_level(BUZZER_PIN, 0);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        goto process_command;
+                    }
+
+                    gpio_set_level(BUZZER_PIN, 1);
+
+                    if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(200)) == pdTRUE) {
+                        goto process_command;
+                    }
+                    break;
+
+                case IR_CODE_7:
+                    printf("Secuencia de leds\n");
+                    for (int i = 0; i < 4; i++) {
+                        int states[4] = {0, 0, 0, 0};
+                        states[i] = 1;
+                        set_leds(states);
+                        if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(200)) == pdTRUE) {
+                            goto process_command;
+                        }
+                    }
+                    break;
+
+                case IR_CODE_8:
+                    printf("Secuencia de corazon\n");
+
+                    // Secuencia de latido: izquierda -> derecha -> izquierda
+                    int heart_sequence[] = {0, 1, 2, 3, 2, 1, 0};
+
+                    // Varios latidos
+                    for (int beat = 0; beat < 3; beat++) {
+
+                        for (int j = 0; j < 7; j++) {
+
+                            int states[4] = {0, 0, 0, 0};
+                            states[heart_sequence[j]] = 1;
+
+                            set_leds(states);
+
+                            // Pitido mientras el LED está encendido
+                            gpio_set_level(BUZZER_PIN, 1);
+
+                            if (xTaskNotifyWait(
+                                    0,
+                                    ULONG_MAX,
+                                    &command,
+                                    pdMS_TO_TICKS(100)
+                                ) == pdTRUE) {
+
+                                goto process_command;
+                            }
+
+                            gpio_set_level(BUZZER_PIN, 0);
+
+                            if (xTaskNotifyWait(
+                                    0,
+                                    ULONG_MAX,
+                                    &command,
+                                    pdMS_TO_TICKS(100)
+                                ) == pdTRUE) {
+
+                                goto process_command;
+                            }
+                        }
+
+                        // Pausa entre latidos
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command,
+                                pdMS_TO_TICKS(300)
+                            ) == pdTRUE) {
+
+                            goto process_command;
+                        }
+                    }
+
+                    // Apagar LEDs antes de la espera final
+                    int states[4] = {0, 0, 0, 0};
+                    set_leds(states);
+                    gpio_set_level(BUZZER_PIN, 0);
+
+                    // Pitido constante al finalizar
+                    printf("Pitido constante\n");
+                    gpio_set_level(BUZZER_PIN, 1);
+                    // Esperar 5 segundos
+                    if (xTaskNotifyWait(
+                            0,
+                            ULONG_MAX,
+                            &command,
+                            pdMS_TO_TICKS(5000)
+                        ) == pdTRUE) {
+
+                        goto process_command;
+                    }
+
+                    break;
+                
+                case IR_CODE_9:
+                while (true) {
+                    printf("Espero un comando cualquiera...\n");
+                    xTaskNotifyWait(0, ULONG_MAX, &command, portMAX_DELAY);
+                    if (command == IR_CODE_9) {
+                        printf("Se recibió el mismo comando, saliendo de la secuencia de tonos\n");
+                        break;
+                    }
+                    printf("Convirtiendo tu comando en un tono\n");
+                    uint32_t tone_command = command;
+                    command = 0; // Reiniciar el comando para evitar bucles infinitos
+                    int states[] = {0,0,0,0};
+                    for (int i = 0; i < 32; i++)
+                    {
+                        gpio_set_level(BUZZER_PIN, 0);
+                        if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(50)) == pdTRUE) {
+                            goto process_command;
+                        }
+
+                        if (i%4 == 0) {
+                            states[0]=states[1]=states[2]=states[3]=0;
+                        }
+
+                        gpio_set_level(BUZZER_PIN, 0);
+                        set_leds(states);
+                        bool state = ((tone_command >> (31 - i)) & 1U) != 0;
+                        printf("Bit %d: %d\n", i, state);
+                        // delay aleatorio entre pitidos
+                        uint32_t delay = 5 + (esp_random() % 300); // entre 5 y 305 ms
+                        printf("Delay: %lu ms\n", delay);
+                        gpio_set_level(BUZZER_PIN, state); // encender o apagar el buzzer según el bit actual
+                        states[i%4] = state; // actualizar cuarteto actual
+                        set_leds(states);
+                        // delay entre actualizaciones
+                        if (xTaskNotifyWait(0, ULONG_MAX, &command, pdMS_TO_TICKS(delay)) == pdTRUE) {
+                            goto process_command;
+                        }
+                    }
+                    gpio_set_level(BUZZER_PIN, 0);
+                    set_leds((int[]){0,0,0,0});
+                }
+                    break;
+                
+                case IR_CODE_10:
+                    printf("Secuencia acelerada de leds con pitido\n");
+
+                    const int steps = 250;
+                    const float delay_start = 600.0f;
+                    const float delay_end = 0.05f;
+
+                    for (int step = 0; step < steps; step++) {
+
+                        // Posición normalizada: 0.0 -> 1.0
+                        float t = (float)step / (steps - 1);
+
+                        // Aceleración exponencial
+                        float delay_ms = delay_start *
+                                        powf(delay_end / delay_start, t);
+
+                        // LED de izquierda a derecha
+                        int i = step % 4;
+
+                        int states[4] = {0, 0, 0, 0};
+                        states[i] = 1;
+                        set_leds(states);
+
+                        // Encender buzzer
+                        gpio_set_level(BUZZER_PIN, 1);
+
+                        // Mantener LED + buzzer durante el delay
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command,
+                                pdMS_TO_TICKS((int)delay_ms)
+                            ) == pdTRUE) {
+
+                            goto process_command;
+                        }
+
+                        // Apagar buzzer
+                        gpio_set_level(BUZZER_PIN, 0);
+
+                        if (xTaskNotifyWait(
+                                0,
+                                ULONG_MAX,
+                                &command,
+                                pdMS_TO_TICKS((int)delay_ms)
+                            ) == pdTRUE) {
+
+                            goto process_command;
+                        }
+                    }
+
+                    break;
+
 
                 case IR_CODE_EXIT:
                     printf("IR: EXIT\n");
+                    exitFlag = 1; // Establecer la bandera de salida
                     vTaskDelete(NULL); // Terminar la tarea
                     break;
 
@@ -87,7 +336,6 @@ static void command_task(void *parameter)
             }
 
             gpio_set_level(BUZZER_PIN, 0);
-            set_leds((int[]){0, 0, 0, 0});
     }
 }
 
@@ -97,7 +345,7 @@ void app_main(void)
 {
     rmt_ir_recv_handle_t receiver;
     rmt_ir_vendor_t brand;
-    uint32_t code;
+    uint32_t code = 0;
     size_t bits;
 
     // Configuración de pines GPIO para LEDs y Buzzer
@@ -141,17 +389,19 @@ void app_main(void)
                    brand, (unsigned long)code, (unsigned)bits);
 
             notify_command(code);
+
+            if (exitFlag == 1) {
+                printf("Se ha solicitado salir del programa\n");
+                break;
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
-
-        if (code == IR_CODE_EXIT) {
-            break;
-        }
     }
 
     gpio_set_level(BUZZER_PIN, 0);
     set_leds((int[]){0, 0, 0, 0});
     gpio_set_level(IR_RECEIVER_SOURCE, 0); // Apagar la fuente de alimentación del receptor IR
     rmt_ir_recv_del(receiver);
+    vTaskDelete(NULL);
 }
