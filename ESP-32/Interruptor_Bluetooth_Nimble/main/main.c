@@ -7,6 +7,7 @@
 #include "common.h"
 #include "gap.h"
 #include "led.h"
+#include "gatt_svc.h"
 /* Library function declarations */
 void ble_store_config_init(void);
 
@@ -63,10 +64,21 @@ static void nimble_host_task(void *param) {
     vTaskDelete(NULL);
 }
 
+gpio_config_t output_config = {
+    .intr_type = GPIO_INTR_DISABLE,
+    .mode = GPIO_MODE_OUTPUT,
+    .pin_bit_mask = (1ULL << SWITCH_PIN),
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+};
+
 void app_main(void) {
     /* Local variables */
     int rc = 0;
     esp_err_t ret = ESP_OK;
+
+    gpio_config(&output_config); // Configura los pines de salida
+    gpio_set_level(SWITCH_PIN, 0);
 
     /* LED initialization */
     led_init();
@@ -99,6 +111,13 @@ void app_main(void) {
         return;
     }
 #endif
+
+    /* GATT server initialization */
+    rc = gatt_svc_init();
+    if (rc != 0) {
+        ESP_LOGE(TAG, "failed to initialize GATT server, error code: %d", rc);
+        return;
+    }
 
     /* NimBLE host configuration initialization */
     nimble_host_config_init();

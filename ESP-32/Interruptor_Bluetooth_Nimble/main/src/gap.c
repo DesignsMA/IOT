@@ -7,11 +7,7 @@
 #include "gap.h"
 #include "common.h"
 #include "led.h"
-
-#define LED_COLOR_ADVERTISING  0x00ECFF
-#define LED_COLOR_CONNECTED    0x00FF00
-#define LED_COLOR_DISCONNECTED 0xFF0000
-#define LED_COLOR_OFF           0x000000
+#include "gatt_svc.h"
 
 /* Private function declarations */
 inline static void format_addr(char *addr_str, uint8_t addr[]);

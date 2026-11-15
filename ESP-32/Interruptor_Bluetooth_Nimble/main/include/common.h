@@ -30,9 +30,20 @@
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 
+#include "driver/gpio.h" 
+
 /* Defines */
 #define TAG "ESP32-S3"
 #define DEVICE_NAME "ESP32-S3-DES728"
 #define STATIC_PASSKEY  672894
+
+#define LED_COLOR_ADVERTISING  0x00ECFF
+#define LED_COLOR_CONNECTED    0x00FF00
+#define LED_COLOR_DISCONNECTED 0xFF0000
+#define LED_COLOR_OFF           0x000000
+#define SWITCH_COLOR_ON 0XFFBB00
+#define SWITCH_COLOR_OFF 0XFF4300
+
+#define SWITCH_PIN GPIO_NUM_4
 
 #endif // COMMON_H
