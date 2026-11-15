@@ -7,7 +7,6 @@
 #include "common.h"
 #include "gap.h"
 #include "led.h"
-
 /* Library function declarations */
 void ble_store_config_init(void);
 
@@ -38,6 +37,16 @@ static void nimble_host_config_init(void) {
     ble_hs_cfg.reset_cb = on_stack_reset;
     ble_hs_cfg.sync_cb = on_stack_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+
+    
+    // Proteccion MITM 
+    ble_hs_cfg.sm_mitm = 1;
+    ble_hs_cfg.sm_bonding = 1; // Permite reconexiones automáticas tras el primer emparejamiento
+    ble_hs_cfg.sm_sc = 1;      // Usar LE Secure Connections (más seguro)
+    // Indicar que el dispositivo usara un teclado con display para introducir pin
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_ONLY;
+
+    ble_sm_configure_static_passkey(STATIC_PASSKEY, true);
 
     /* Store host configuration */
     ble_store_config_init();

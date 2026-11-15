@@ -8,11 +8,6 @@
 #include "common.h"
 #include "led.h"
 
-/*Configuraciones adicionales*/
-#include "host/ble_hs.h"
-#include "host/util/util.h"
-
-#define STATIC_PASSKEY  672894
 #define LED_COLOR_ADVERTISING  0x00ECFF
 #define LED_COLOR_CONNECTED    0x00FF00
 #define LED_COLOR_DISCONNECTED 0xFF0000
@@ -73,16 +68,7 @@ static void start_advertising(void) {
     struct ble_hs_adv_fields adv_fields = {0};
     struct ble_hs_adv_fields rsp_fields = {0};
     struct ble_gap_adv_params adv_params = {0};
-    struct ble_hs_cfg bls_hs_cfg = {0};
     
-    // Proteccion MITM 
-    ble_hs_cfg.sm_mitm = 1;
-    ble_hs_cfg.sm_bonding = 1; // Permite reconexiones automáticas tras el primer emparejamiento
-    ble_hs_cfg.sm_sc = 1;      // Usar LE Secure Connections (más seguro)
-    // Indicar que el dispositivo usara un teclado con display para introducir pin
-    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_ONLY;
-
-    ble_sm_configure_static_passkey(STATIC_PASSKEY, true);
 
     /* Set advertising flags */
     adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
@@ -255,7 +241,44 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg) {
             ESP_LOGI(TAG, "Passkey estática inyectada para emparejamiento");
         }
         return rc;
+
+    /* Advertising complete event */
+    case BLE_GAP_EVENT_ADV_COMPLETE:
+        /* Advertising completed, restart advertising */
+        ESP_LOGI(TAG, "advertise complete; reason=%d",
+                 event->adv_complete.reason);
+        start_advertising();
+        return rc;
+
+    /* Notification sent event */
+    case BLE_GAP_EVENT_NOTIFY_TX:
+        if ((event->notify_tx.status != 0) &&
+            (event->notify_tx.status != BLE_HS_EDONE)) {
+            /* Print notification info on error */
+            ESP_LOGI(TAG,
+                     "notify event; conn_handle=%d attr_handle=%d "
+                     "status=%d is_indication=%d",
+                     event->notify_tx.conn_handle, event->notify_tx.attr_handle,
+                     event->notify_tx.status, event->notify_tx.indication);
+        }
+        return rc;
+
+    /* Subscribe event */
+    case BLE_GAP_EVENT_SUBSCRIBE:
+        /* Print subscription info to log */
+        ESP_LOGI(TAG,
+                 "subscribe event; conn_handle=%d attr_handle=%d "
+                 "reason=%d prevn=%d curn=%d previ=%d curi=%d",
+                 event->subscribe.conn_handle, event->subscribe.attr_handle,
+                 event->subscribe.reason, event->subscribe.prev_notify,
+                 event->subscribe.cur_notify, event->subscribe.prev_indicate,
+                 event->subscribe.cur_indicate);
+
+        /* GATT subscribe event callback */
+        gatt_svr_subscribe_cb(event);
+        return rc;
     }
+
 
     return rc;
 }

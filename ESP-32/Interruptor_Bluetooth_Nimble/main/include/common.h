@@ -8,6 +8,7 @@
 
 /* Includes */
 /* STD APIs */
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -32,5 +33,6 @@
 /* Defines */
 #define TAG "ESP32-S3"
 #define DEVICE_NAME "ESP32-S3-DES728"
+#define STATIC_PASSKEY  672894
 
 #endif // COMMON_H
