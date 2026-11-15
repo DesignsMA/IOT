@@ -8,6 +8,11 @@
 #include "common.h"
 #include "led.h"
 
+/*Configuraciones adicionales*/
+#include "host/ble_hs.h"
+#include "host/util/util.h"
+
+#define STATIC_PASSKEY  672894
 #define LED_COLOR_ADVERTISING  0x00ECFF
 #define LED_COLOR_CONNECTED    0x00FF00
 #define LED_COLOR_DISCONNECTED 0xFF0000
@@ -22,8 +27,13 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg);
 /* Private variables */
 static uint8_t own_addr_type;
 static uint8_t addr_val[6] = {0};
-static uint8_t esp_uri[] = {BLE_GAP_URI_PREFIX_HTTPS, '/', '/', 'e', 's', 'p', 'r', 'e', 's', 's', 'i', 'f', '.', 'c', 'o', 'm'};
-
+static uint8_t esp_uri[] = {
+    BLE_GAP_URI_PREFIX_HTTPS,   // "https:"
+    '/', '/',
+    'g', 'i', 't', 'h', 'u', 'b', '.', 'c', 'o', 'm',
+    '/',
+    'D', 'e', 's', 'i', 'g', 'n', 's', 'M', 'A'
+};
 /* Private functions */
 inline static void format_addr(char *addr_str, uint8_t addr[]) {
     sprintf(addr_str, "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1],
@@ -63,6 +73,16 @@ static void start_advertising(void) {
     struct ble_hs_adv_fields adv_fields = {0};
     struct ble_hs_adv_fields rsp_fields = {0};
     struct ble_gap_adv_params adv_params = {0};
+    struct ble_hs_cfg bls_hs_cfg = {0};
+    
+    // Proteccion MITM 
+    ble_hs_cfg.sm_mitm = 1;
+    ble_hs_cfg.sm_bonding = 1; // Permite reconexiones automáticas tras el primer emparejamiento
+    ble_hs_cfg.sm_sc = 1;      // Usar LE Secure Connections (más seguro)
+    // Indicar que el dispositivo usara un teclado con display para introducir pin
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_ONLY;
+
+    ble_sm_configure_static_passkey(STATIC_PASSKEY, true);
 
     /* Set advertising flags */
     adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
@@ -78,7 +98,7 @@ static void start_advertising(void) {
     adv_fields.tx_pwr_lvl_is_present = 1;
 
     /* Set device appearance */
-    adv_fields.appearance = BLE_GAP_APPEARANCE_GENERIC_TAG;
+    adv_fields.appearance = BLE_GAP_APPEARANCE;
     adv_fields.appearance_is_present = 1;
 
     /* Set device LE role */
@@ -92,17 +112,12 @@ static void start_advertising(void) {
         return;
     }
 
-    /* Set device address */
-    rsp_fields.device_addr = addr_val;
-    rsp_fields.device_addr_type = own_addr_type;
-    rsp_fields.device_addr_is_present = 1;
-
     /* Set URI */
     rsp_fields.uri = esp_uri;
     rsp_fields.uri_len = sizeof(esp_uri);
 
     /* Set advertising interval */
-    rsp_fields.adv_itvl = BLE_GAP_ADV_ITVL_MS(500);
+    rsp_fields.adv_itvl = BLE_GAP_ADV_ITVL_MS(200);
     rsp_fields.adv_itvl_is_present = 1;
 
     /* Set scan response fields */
@@ -117,8 +132,8 @@ static void start_advertising(void) {
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
     /* Set advertising interval */
-    adv_params.itvl_min = BLE_GAP_ADV_ITVL_MS(500);
-    adv_params.itvl_max = BLE_GAP_ADV_ITVL_MS(510);
+    adv_params.itvl_min = BLE_GAP_ADV_ITVL_MS(200);
+    adv_params.itvl_max = BLE_GAP_ADV_ITVL_MS(210);
 
     /* Start advertising */
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params,
@@ -155,6 +170,14 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg) {
 
         /* Connection succeeded */
         if (event->connect.status == 0) {
+
+            int rc_sec = ble_gap_security_initiate(event->connect.conn_handle);
+            if (rc_sec != 0) {
+                ESP_LOGE(TAG, "No se pudo iniciar la seguridad: %d", rc_sec);
+            } else {
+                ESP_LOGI(TAG, "Seguridad iniciada, esperando PIN...");
+            }
+
             /* Check connection handle */
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
             if (rc != 0) {
@@ -222,6 +245,16 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg) {
         }
         print_conn_desc(&desc);
         return rc;
+
+    case BLE_GAP_EVENT_PASSKEY_ACTION:
+        if (event->passkey.params.action == BLE_SM_IOACT_STATIC) {
+            struct ble_sm_io pkey = {0};
+            pkey.action = BLE_SM_IOACT_STATIC;
+            pkey.passkey = STATIC_PASSKEY; // Debe coincidir con el valor configurado
+            ble_sm_inject_io(event->passkey.conn_handle, &pkey);
+            ESP_LOGI(TAG, "Passkey estática inyectada para emparejamiento");
+        }
+        return rc;
     }
 
     return rc;
@@ -277,7 +310,7 @@ int gap_init(void) {
     }
 
     /* Set GAP device appearance */
-    rc = ble_svc_gap_device_appearance_set(BLE_GAP_APPEARANCE_GENERIC_TAG);
+    rc = ble_svc_gap_device_appearance_set(BLE_GAP_APPEARANCE);
     if (rc != 0) {
         ESP_LOGE(TAG, "failed to set device appearance, error code: %d", rc);
         return rc;
