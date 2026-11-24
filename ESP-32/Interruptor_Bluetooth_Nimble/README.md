@@ -66,7 +66,7 @@ servicio y escribe `1` o `0` en su característica para controlar el interruptor
 
 El sketch independiente [`arduino_classic/arduino_classic.ino`](./arduino_classic/arduino_classic.ino)
 controla el relevador por Bluetooth Classic SPP: empareja el teléfono con
-`iFoco` y envía `1` para encender o `0` para apagar. Usa GPIO 4 y nivel alto
+`MarcoFoco728` y envía `1` para encender o `0` para apagar. Usa GPIO 4 y nivel alto
 para activar el relevador, igual que la implementación ESP-IDF.
 
 Esta alternativa requiere una placa ESP32 con Bluetooth Classic, como ESP32
