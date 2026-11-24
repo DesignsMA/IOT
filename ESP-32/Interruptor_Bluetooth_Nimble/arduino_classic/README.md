@@ -1,0 +1,1 @@
+Implementación simple con arduino, apropiado para placas como ESP32, usado para probar conexión por medio de bluetooth classic.

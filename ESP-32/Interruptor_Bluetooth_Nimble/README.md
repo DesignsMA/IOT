@@ -61,3 +61,15 @@ idf.py -p <puerto> flash monitor
 Por ejemplo, usa `esp32s3` como objetivo si tu placa está basada en ESP32-S3.
 Luego, conéctate al dispositivo desde nRF Connect for Mobile, descubre el
 servicio y escribe `1` o `0` en su característica para controlar el interruptor.
+
+## Alternativa simple para Arduino IDE y Bluetooth Classic
+
+El sketch independiente [`arduino_classic/arduino_classic.ino`](./arduino_classic/arduino_classic.ino)
+controla el relevador por Bluetooth Classic SPP: empareja el teléfono con
+`iFoco` y envía `1` para encender o `0` para apagar. Usa GPIO 4 y nivel alto
+para activar el relevador, igual que la implementación ESP-IDF.
+
+Esta alternativa requiere una placa ESP32 con Bluetooth Classic, como ESP32
+original (WROOM/WROVER). No es compatible con ESP32-S3, ESP32-C3 ni otros
+modelos que solo admiten Bluetooth LE; el objetivo actual de este proyecto es
+ESP32-S3.
